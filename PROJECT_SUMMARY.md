@@ -7,11 +7,18 @@ This MCP server is fully functional and ready to connect to Claude Desktop.
 ## What Was Built
 
 ### Core Functionality ✓
-- **Four MCP Tools Implemented:**
-  1. `get_todays_events` - Fetches events happening today
-  2. `get_upcoming_events` - Fetches events in the next N days (default: 7)
-  3. `search_events` - Searches events by keyword
-  4. `register_for_event` - Register for events with name and email
+
+**Four MCP Tools:**
+1. `get_todays_events` - Fetches events happening today
+2. `get_upcoming_events` - Fetches events in the next N days (default: 7)
+3. `search_events` - Searches events by keyword
+4. `register_for_event` - Register for events with name and email
+
+**MCP Resources (Wiki):**
+- Access Network School wiki pages on-demand
+- Automatic discovery of all markdown files in `wiki/` folder
+- Token-efficient: only loads content when Claude needs it
+- Easy to add new pages - just drop `.md` files in the folder!
 
 ### Tech Stack ✓
 - TypeScript with strict type checking

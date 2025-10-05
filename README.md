@@ -4,10 +4,18 @@ A Model Context Protocol (MCP) server that provides access to Network School Lum
 
 ## Features
 
+### Tools
 - **get_todays_events**: Fetch all events happening today
 - **get_upcoming_events**: Get events in the next N days (default: 7)
 - **search_events**: Search events by name or description
 - **register_for_event**: Register for events directly with your name and email
+
+### Wiki Resources
+- **Access Network School wiki pages** with information about:
+  - Visas (Malaysia, Singapore, travel from different countries)
+  - Internet (WiFi passwords, SIM cards)
+  - Getting Started guide
+  - And more - easily add new wiki pages as markdown files!
 
 ## Installation
 
@@ -79,6 +87,13 @@ You can then ask Claude questions like:
 - "Sign me up for event evt-XXX with my name and email"
 - After viewing events, you can say: "Register me for that AI Music Lab event"
 
+**Accessing Wiki Information:**
+- "How do I get a visa for Malaysia from India?"
+- "What's the WiFi password?"
+- "How do I get started at Network School?"
+- "What are the visa requirements for Singapore?"
+- Claude will automatically access the relevant wiki pages to answer your questions!
+
 ### Available Tools
 
 1. **get_todays_events**: Returns all events happening today
@@ -97,6 +112,32 @@ You can then ask Claude questions like:
 ## API
 
 This server fetches data from the public Network School Luma calendar API. No authentication is required.
+
+## Adding Wiki Content
+
+To add or update wiki pages:
+
+1. Create a new `.md` file in the `wiki/` directory:
+   ```bash
+   echo "# My New Page" > wiki/my-new-page.md
+   ```
+
+2. Add your content in Markdown format
+
+3. Rebuild the server:
+   ```bash
+   npm run build
+   ```
+
+4. Restart Claude Desktop
+
+The new wiki page will automatically be available as a resource that Claude can access!
+
+**Tips:**
+- Use descriptive filenames (e.g., `transportation.md`, `food-guide.md`)
+- Include headers with `#` for better organization
+- Link to other resources or external URLs
+- Keep information up-to-date
 
 ## Tech Stack
 

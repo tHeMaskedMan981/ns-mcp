@@ -8,7 +8,9 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node build/index.js",
-    "test": "tsc && node build/test.js"
+    "test": "tsc && node build/test.js",
+    "test:wiki": "tsc && node build/test-wiki.js",
+    "test:search": "tsc && node build/test-search.js"
   },
   "keywords": [
     "mcp",

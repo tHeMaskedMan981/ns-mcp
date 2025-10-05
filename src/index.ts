@@ -9,6 +9,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { LumaClient } from './luma-client.js';
 import {
@@ -17,6 +19,7 @@ import {
   searchEvents,
   formatEventsList,
 } from './formatters.js';
+import { listWikiResources, readWikiResource, isWikiUri, searchWiki } from './wiki.js';
 
 // Initialize Luma client
 const lumaClient = new LumaClient();
@@ -30,6 +33,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -106,8 +110,55 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['event_id', 'name', 'email'],
         },
       },
+      {
+        name: 'search_wiki',
+        description: 'Search the Network School wiki for information about visas, internet, food, getting started, and more',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query (e.g., "wifi password", "visa", "breakfast", "sim card")',
+            },
+          },
+          required: ['query'],
+        },
+      },
     ],
   };
+});
+
+// Register list_resources handler
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  const wikiResources = await listWikiResources();
+  return {
+    resources: wikiResources,
+  };
+});
+
+// Register read_resource handler
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const uri = request.params.uri;
+
+  if (!isWikiUri(uri)) {
+    throw new Error(`Unknown resource URI: ${uri}`);
+  }
+
+  try {
+    const content = await readWikiResource(uri);
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: 'text/markdown',
+          text: content,
+        },
+      ],
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to read resource: ${errorMessage}`);
+  }
 });
 
 // Register call_tool handler
@@ -193,6 +244,58 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: formatted,
+            },
+          ],
+        };
+      }
+
+      case 'search_wiki': {
+        const query = args?.query as string;
+        
+        if (!query || typeof query !== 'string') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'Error: query parameter is required and must be a string',
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const results = await searchWiki(query);
+        
+        if (results.length === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `No wiki pages found matching "${query}".`,
+              },
+            ],
+          };
+        }
+
+        // Format the results
+        let response = `Found ${results.length} wiki page${results.length !== 1 ? 's' : ''} matching "${query}":\n\n`;
+        
+        results.forEach((result, index) => {
+          const title = result.page
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          
+          response += `**${index + 1}. ${title}** (${result.matches} match${result.matches !== 1 ? 'es' : ''})\n\n`;
+          response += result.content;
+          response += '\n\n---\n\n';
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: response.trim(),
             },
           ],
         };
