@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "network-school-events": {
+      "command": "node",
+      "args": ["/Users/akashkumar/Code/ns-mcp/build/index.js"]
+    }
+  }
+}
+
