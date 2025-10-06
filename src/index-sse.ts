@@ -80,6 +80,31 @@ app.get('/.well-known/oauth-protected-resource', (_req, res) => {
   });
 });
 
+// Claude also looks for well-known endpoints relative to the SSE path
+app.get('/.well-known/oauth-protected-resource/sse', (_req, res) => {
+  res.json({
+    resource: `${BASE_URL}/sse`,
+    authorization_servers: [BASE_URL],
+    scopes_supported: ['mcp:read', 'mcp:write'],
+    bearer_methods_supported: ['header'],
+  });
+});
+
+app.get('/.well-known/oauth-authorization-server/sse', (_req, res) => {
+  res.json({
+    issuer: BASE_URL,
+    authorization_endpoint: `${BASE_URL}/authorize`,
+    token_endpoint: `${BASE_URL}/token`,
+    registration_endpoint: `${BASE_URL}/register`,
+    scopes_supported: ['mcp:read', 'mcp:write'],
+    response_types_supported: ['code'],
+    response_modes_supported: ['query'],
+    grant_types_supported: ['authorization_code'],
+    token_endpoint_auth_methods_supported: ['none'],
+    code_challenge_methods_supported: ['S256', 'plain'],
+  });
+});
+
 // OAuth 2.0 client registration endpoint (for MCP compatibility)
 app.post('/register', (req, res) => {
   // For MVP, auto-approve all client registrations
