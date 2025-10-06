@@ -1,6 +1,6 @@
 # Network School Events MCP Server
 
-A Model Context Protocol (MCP) server that provides access to Network School Luma calendar events through Claude Desktop.
+A Model Context Protocol (MCP) server that provides access to Network School Luma calendar events through Claude Desktop. **Supports both local (stdio) and remote (SSE) modes.**
 
 ## Features
 
@@ -9,6 +9,7 @@ A Model Context Protocol (MCP) server that provides access to Network School Lum
 - **get_upcoming_events**: Get events in the next N days (default: 7)
 - **search_events**: Search events by name or description
 - **register_for_event**: Register for events directly with your name and email
+- **search_wiki**: Search wiki content for information
 
 ### Wiki Resources
 - **Access Network School wiki pages** with information about:
@@ -47,7 +48,51 @@ npm test
 
 This will fetch events from the Luma API and display them in the formatted output.
 
+## Running the Server
+
+### Mode 1: Local Mode (stdio) - For Claude Desktop
+
+This is the default mode for local use with Claude Desktop:
+
+```bash
+npm start
+```
+
+### Mode 2: Remote Mode (SSE) - For Remote Access
+
+For remote access over HTTP using Server-Sent Events:
+
+```bash
+npm run start:sse
+```
+
+Or for development with auto-rebuild:
+
+```bash
+npm run dev:sse
+```
+
+The server will start on `http://localhost:3000` by default.
+
+#### Environment Variables
+
+You can configure the SSE server using environment variables:
+
+```bash
+# .env file
+PORT=3000
+HOST=localhost
+```
+
+Or set them when running:
+
+```bash
+PORT=8080 npm run start:sse
+```
+
 ## Configuration
+
+### Local Mode (stdio) Configuration
 
 Add to your Claude Desktop config file:
 
@@ -67,6 +112,74 @@ Add to your Claude Desktop config file:
 ```
 
 You can also copy the configuration from `claude_config_example.json` in this project.
+
+### Remote Mode (SSE) Configuration
+
+For remote access, first start the SSE server:
+
+```bash
+npm run start:sse
+```
+
+The server includes minimal OAuth 2.0 authentication to satisfy Claude Desktop's requirements while keeping friction low for MVP.
+
+#### For Local Testing (localhost)
+
+Configure Claude Desktop to connect to the local SSE server:
+
+```json
+{
+  "mcpServers": {
+    "network-school-events": {
+      "url": "http://localhost:3000/sse",
+      "auth": {
+        "type": "oauth2",
+        "authorizationUrl": "http://localhost:3000/authorize",
+        "tokenUrl": "http://localhost:3000/token",
+        "clientId": "mcp-client",
+        "clientSecret": "not-required"
+      }
+    }
+  }
+}
+```
+
+#### For Remote Deployment (Replit, Railway, etc.)
+
+1. Deploy your server and get the URL (e.g., `https://your-app.replit.app`)
+2. Set the `BASE_URL` environment variable to your deployment URL
+3. Configure Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "network-school-events": {
+      "url": "https://your-app.replit.app/sse",
+      "auth": {
+        "type": "oauth2",
+        "authorizationUrl": "https://your-app.replit.app/authorize",
+        "tokenUrl": "https://your-app.replit.app/token",
+        "clientId": "mcp-client",
+        "clientSecret": "not-required"
+      }
+    }
+  }
+}
+```
+
+4. In Claude Desktop, click "Connect" next to the server
+5. You'll be redirected to a browser for OAuth authorization
+6. The page will automatically redirect back to Claude Desktop
+7. Your server is now connected!
+
+**Endpoints:**
+- SSE endpoint: `/sse`
+- Health check: `/health`
+- OAuth Authorization: `/authorize`
+- OAuth Token: `/token`
+
+**Security Note for MVP:**
+This implementation uses minimal OAuth for compatibility with Claude Desktop. The authentication essentially auto-approves all connections. For production use, implement proper authentication with user validation.
 
 ## Usage in Claude Desktop
 
@@ -139,13 +252,31 @@ The new wiki page will automatically be available as a resource that Claude can 
 - Link to other resources or external URLs
 - Keep information up-to-date
 
+## Architecture
+
+This server supports two transport modes:
+
+### stdio Transport (Local)
+- Uses standard input/output for communication
+- Launched directly by Claude Desktop as a subprocess
+- Best for local development and single-user scenarios
+
+### SSE Transport (Remote)
+- Uses Server-Sent Events over HTTP
+- Runs as an HTTP server
+- Allows remote access from anywhere
+- Supports multiple concurrent connections
+- CORS enabled for cross-origin requests
+
 ## Tech Stack
 
 - TypeScript
 - Node.js
 - @modelcontextprotocol/sdk
+- Express (for SSE mode)
 - axios for HTTP requests
 - date-fns for date formatting
+- cors for cross-origin support
 
 ## License
 

@@ -8,6 +8,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node build/index.js",
+    "start:sse": "node build/index-sse.js",
+    "dev:sse": "tsc && node build/index-sse.js",
     "test": "tsc && node build/test.js",
     "test:wiki": "tsc && node build/test-wiki.js",
     "test:search": "tsc && node build/test-search.js"
@@ -23,10 +25,15 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.12.2",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0"
+    "date-fns-tz": "^3.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   }
