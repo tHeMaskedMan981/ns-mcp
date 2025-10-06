@@ -18,8 +18,8 @@ import crypto from 'crypto';
 dotenv.config();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-const HOST = process.env.HOST || 'localhost';
-const BASE_URL = process.env.BASE_URL || `http://${HOST}:${PORT}`;
+const HOST = process.env.HOST || '0.0.0.0'; // Bind to 0.0.0.0 for Railway/Docker
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`; // BASE_URL uses localhost for display, HOST is for binding
 
 // Simple in-memory token storage (for MVP - replace with proper storage in production)
 const tokens = new Map<string, { code: string; accessToken?: string; expiresAt: number }>();
@@ -67,6 +67,16 @@ app.get('/.well-known/oauth-authorization-server', (_req, res) => {
     grant_types_supported: ['authorization_code'],
     token_endpoint_auth_methods_supported: ['none'],
     code_challenge_methods_supported: ['S256', 'plain'],
+  });
+});
+
+// OAuth 2.0 protected resource metadata (for MCP SSE endpoint discovery)
+app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+  res.json({
+    resource: `${BASE_URL}/sse`,
+    authorization_servers: [BASE_URL],
+    scopes_supported: ['mcp:read', 'mcp:write'],
+    bearer_methods_supported: ['header'],
   });
 });
 
