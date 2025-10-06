@@ -22,7 +22,13 @@ const HOST = process.env.HOST || 'localhost';
 const BASE_URL = process.env.BASE_URL || `http://${HOST}:${PORT}`;
 
 // Simple in-memory token storage (for MVP - replace with proper storage in production)
-const tokens = new Map<string, { code: string; accessToken?: string }>();
+const tokens = new Map<string, { code: string; accessToken?: string; expiresAt: number }>();
+const authCodes = new Map<string, { 
+  code: string; 
+  codeChallenge?: string; 
+  codeChallengeMethod?: string;
+  expiresAt: number 
+}>();
 
 // Create Express app
 const app = express();
@@ -48,21 +54,68 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// OAuth 2.0 metadata endpoint (required for discovery)
+app.get('/.well-known/oauth-authorization-server', (_req, res) => {
+  res.json({
+    issuer: BASE_URL,
+    authorization_endpoint: `${BASE_URL}/authorize`,
+    token_endpoint: `${BASE_URL}/token`,
+    registration_endpoint: `${BASE_URL}/register`,
+    scopes_supported: ['mcp:read', 'mcp:write'],
+    response_types_supported: ['code'],
+    response_modes_supported: ['query'],
+    grant_types_supported: ['authorization_code'],
+    token_endpoint_auth_methods_supported: ['none'],
+    code_challenge_methods_supported: ['S256', 'plain'],
+  });
+});
+
+// OAuth 2.0 client registration endpoint (for MCP compatibility)
+app.post('/register', (req, res) => {
+  // For MVP, auto-approve all client registrations
+  const clientId = crypto.randomBytes(16).toString('hex');
+  
+  console.error('Client registration:', req.body);
+  
+  res.json({
+    client_id: clientId,
+    client_name: req.body.client_name || 'MCP Client',
+    redirect_uris: req.body.redirect_uris || [],
+    token_endpoint_auth_method: 'none',
+  });
+});
+
 // OAuth 2.0 Authorization endpoint
 app.get('/authorize', (req, res) => {
-  const { client_id, redirect_uri, state, response_type } = req.query;
+  const { client_id, redirect_uri, state, response_type, code_challenge, code_challenge_method } = req.query;
 
-  console.error('Authorization request:', { client_id, redirect_uri, state, response_type });
+  console.error('Authorization request:', { 
+    client_id, 
+    redirect_uri, 
+    state, 
+    response_type,
+    code_challenge: code_challenge ? 'present' : 'none',
+    code_challenge_method 
+  });
 
   if (!redirect_uri) {
     return res.status(400).json({ error: 'redirect_uri is required' });
   }
 
-  // Generate a simple authorization code
+  if (response_type !== 'code') {
+    return res.status(400).json({ error: 'Only response_type=code is supported' });
+  }
+
+  // Generate authorization code
   const code = crypto.randomBytes(16).toString('hex');
   
-  // Store the code for later exchange
-  tokens.set(code, { code });
+  // Store the code with PKCE parameters if provided
+  authCodes.set(code, { 
+    code,
+    codeChallenge: code_challenge as string | undefined,
+    codeChallengeMethod: (code_challenge_method as string) || 'plain',
+    expiresAt: Date.now() + 600000, // 10 minutes
+  });
 
   // Redirect back to Claude Desktop with the code
   const redirectUrl = `${redirect_uri}?code=${code}${state ? `&state=${state}` : ''}`;
@@ -88,9 +141,9 @@ app.get('/authorize', (req, res) => {
 
 // OAuth 2.0 Token endpoint
 app.post('/token', (req, res) => {
-  const { grant_type, code, redirect_uri } = req.body;
+  const { grant_type, code, redirect_uri, code_verifier } = req.body;
 
-  console.error('Token request:', { grant_type, code, redirect_uri });
+  console.error('Token request:', { grant_type, code, redirect_uri, code_verifier: code_verifier ? 'present' : 'none' });
 
   if (grant_type !== 'authorization_code') {
     return res.status(400).json({ 
@@ -107,25 +160,72 @@ app.post('/token', (req, res) => {
   }
 
   // Verify the code exists
-  const tokenData = tokens.get(code);
-  if (!tokenData) {
+  const authData = authCodes.get(code);
+  if (!authData) {
     return res.status(400).json({ 
       error: 'invalid_grant',
       error_description: 'Invalid authorization code' 
     });
   }
 
+  // Check if code expired
+  if (authData.expiresAt < Date.now()) {
+    authCodes.delete(code);
+    return res.status(400).json({
+      error: 'invalid_grant',
+      error_description: 'Authorization code expired'
+    });
+  }
+
+  // Validate PKCE if code_challenge was provided
+  if (authData.codeChallenge) {
+    if (!code_verifier) {
+      return res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'code_verifier is required'
+      });
+    }
+
+    let calculatedChallenge: string;
+    if (authData.codeChallengeMethod === 'S256') {
+      calculatedChallenge = crypto
+        .createHash('sha256')
+        .update(code_verifier)
+        .digest('base64url');
+    } else {
+      calculatedChallenge = code_verifier;
+    }
+
+    if (calculatedChallenge !== authData.codeChallenge) {
+      console.error('PKCE validation failed');
+      return res.status(400).json({
+        error: 'invalid_grant',
+        error_description: 'Invalid code verifier'
+      });
+    }
+  }
+
   // Generate an access token
   const accessToken = crypto.randomBytes(32).toString('hex');
-  tokenData.accessToken = accessToken;
+  const expiresAt = Date.now() + 86400000; // 24 hours
+  
+  tokens.set(accessToken, {
+    code,
+    accessToken,
+    expiresAt
+  });
 
-  console.error('Issued access token:', accessToken);
+  // Clean up auth code (one-time use)
+  authCodes.delete(code);
+
+  console.error('Issued access token:', accessToken.substring(0, 10) + '...');
 
   // Return the token response
   res.json({
     access_token: accessToken,
     token_type: 'Bearer',
     expires_in: 86400, // 24 hours
+    scope: 'mcp:read mcp:write',
   });
 });
 
