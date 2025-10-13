@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network School - MCP Server Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 440px;
+            width: 100%;
+            padding: 40px;
+            animation: slideUp 0.4s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input::placeholder {
+            color: #a0aec0;
+        }
+
+        .password-hint {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-message.error {
+            background-color: #fed7d7;
+            color: #9b2c2c;
+            border: 1px solid #fc8181;
+        }
+
+        .status-message.success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #68d391;
+        }
+
+        .status-message.info {
+            background-color: #bee3f8;
+            color: #2c5282;
+            border: 1px solid #63b3ed;
+        }
+
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🏫</div>
+            <h1>Network School</h1>
+            <p class="subtitle">MCP Server Authentication</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input 
+                    type="text" 
+                    id="name" 
+                    name="name" 
+                    placeholder="John Doe" 
+                    required
+                    autocomplete="name"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    placeholder="john@example.com" 
+                    required
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">WiFi Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    placeholder="Enter the WiFi password" 
+                    required
+                    autocomplete="current-password"
+                >
+                <p class="password-hint">Enter the Network School WiFi password</p>
+            </div>
+
+            <button type="submit" id="submitBtn">
+                Continue to Claude
+            </button>
+
+            <div id="statusMessage" class="status-message"></div>
+        </form>
+
+        <div class="footer">
+            Secured by OAuth 2.1 with PKCE
+        </div>
+    </div>
+
+    <script>
+        // Get OAuth parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUri = urlParams.get('redirect_uri');
+        const state = urlParams.get('state');
+        const codeChallenge = urlParams.get('code_challenge');
+        const codeChallengeMethod = urlParams.get('code_challenge_method');
+        const clientId = urlParams.get('client_id');
+
+        // Form elements
+        const form = document.getElementById('loginForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+
+        function showMessage(message, type = 'info') {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.style.display = 'block';
+        }
+
+        function hideMessage() {
+            statusMessage.style.display = 'none';
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner"></span>Authenticating...';
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Continue to Claude';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage();
+            setLoading(true);
+
+            const formData = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: document.getElementById('password').value,
+                redirect_uri: redirectUri,
+                state: state,
+                code_challenge: codeChallenge,
+                code_challenge_method: codeChallengeMethod,
+                client_id: clientId,
+            };
+
+            try {
+                const response = await fetch('/callback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData),
+                    redirect: 'manual', // Don't auto-follow redirects
+                });
+
+                if (response.type === 'opaqueredirect' || response.status === 0) {
+                    // Browser is handling the redirect
+                    showMessage('✓ Authentication successful! Redirecting...', 'success');
+                    return;
+                }
+
+                if (response.redirected) {
+                    // Follow the redirect
+                    showMessage('✓ Authentication successful! Redirecting...', 'success');
+                    window.location.href = response.url;
+                    return;
+                }
+
+                // Check for Location header
+                const locationHeader = response.headers.get('Location');
+                if (locationHeader) {
+                    showMessage('✓ Authentication successful! Redirecting...', 'success');
+                    window.location.href = locationHeader;
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (data.error === 'invalid_password') {
+                        showMessage('❌ Incorrect WiFi password. Please try again.', 'error');
+                    } else {
+                        showMessage(`❌ ${data.message || data.error || 'Authentication failed'}`, 'error');
+                    }
+                    setLoading(false);
+                } else {
+                    showMessage('✓ Authentication successful!', 'success');
+                    if (data.redirect_url) {
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url;
+                        }, 500);
+                    }
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showMessage('❌ Network error. Please try again.', 'error');
+                setLoading(false);
+            }
+        });
+
+        // Validate that we have required OAuth parameters
+        if (!redirectUri) {
+            showMessage('❌ Missing OAuth parameters. Please start from Claude.', 'error');
+            submitBtn.disabled = true;
+        }
+    </script>
+</body>
+</html>
+

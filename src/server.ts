@@ -168,6 +168,14 @@ export function createServer(): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       const { name, arguments: args } = request.params;
+      
+      // Log authInfo if available (for debugging and demonstration)
+      // In production, use this for per-user authorization and rate limiting
+      const requestMeta = (request as any)._meta;
+      if (requestMeta && requestMeta.authInfo) {
+        const authInfo = requestMeta.authInfo;
+        console.error(`[Tool Call] ${name} - User: ${authInfo.email || 'unknown'} - Scopes: ${authInfo.scopes?.join(',') || 'none'}`);
+      }
 
       switch (name) {
         case 'get_todays_events': {
@@ -305,6 +313,23 @@ export function createServer(): Server {
         }
 
         case 'register_for_event': {
+          // Example: Check if user has the required scope for event registration
+          const requestMeta = (request as any)._meta;
+          if (requestMeta && requestMeta.authInfo) {
+            const authInfo = requestMeta.authInfo;
+            if (!authInfo.scopes || !authInfo.scopes.includes('events:register')) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Unauthorized: You do not have permission to register for events. Required scope: events:register',
+                  },
+                ],
+                isError: true,
+              };
+            }
+          }
+          
           const eventId = args?.event_id as string;
           const name = args?.name as string;
           const email = args?.email as string;

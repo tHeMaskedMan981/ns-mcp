@@ -58,36 +58,59 @@ This is the default mode for local use with Claude Desktop:
 npm start
 ```
 
-### Mode 2: Remote Mode (SSE) - For Remote Access
+### Mode 2: Remote Mode with OAuth 2.1 (HTTP) - **RECOMMENDED for Production**
 
-For remote access over HTTP using Server-Sent Events:
+**NEW!** Full OAuth 2.1 implementation with WiFi password authentication:
 
 ```bash
-npm run start:sse
+npm run start:http
 ```
 
 Or for development with auto-rebuild:
 
 ```bash
-npm run dev:sse
+npm run dev:http
+```
+
+This mode includes:
+- ✅ Full OAuth 2.1 with PKCE
+- ✅ WiFi password authentication
+- ✅ Per-user tracking and usage statistics
+- ✅ Modern StreamableHTTP transport
+- ✅ Session management
+- ✅ Scope-based authorization
+
+See **[OAUTH_GUIDE.md](./OAUTH_GUIDE.md)** for complete setup instructions.
+
+### Mode 3: Remote Mode (SSE) - Legacy Support
+
+For remote access over HTTP using Server-Sent Events (older protocol):
+
+```bash
+npm run start:sse
 ```
 
 The server will start on `http://localhost:3000` by default.
 
 #### Environment Variables
 
-You can configure the SSE server using environment variables:
+You can configure the server using environment variables:
 
 ```bash
 # .env file
 PORT=3000
-HOST=localhost
+HOST=0.0.0.0
+BASE_URL=http://localhost:3000
+WIFI_PASSWORD=darktalent2024!
+LUMA_API_KEY=your_luma_api_key
 ```
+
+Copy `.env.example` to `.env` and update with your values.
 
 Or set them when running:
 
 ```bash
-PORT=8080 npm run start:sse
+PORT=8080 npm run start:http
 ```
 
 ## Configuration
@@ -113,9 +136,40 @@ Add to your Claude Desktop config file:
 
 You can also copy the configuration from `claude_config_example.json` in this project.
 
-### Remote Mode (SSE) Configuration
+### Remote Mode Configuration
 
-For remote access, first start the SSE server:
+#### Option A: Modern OAuth 2.1 (Recommended)
+
+Start the server with full OAuth 2.1:
+
+```bash
+npm run start:http
+```
+
+For Claude Desktop/Mobile, simply add:
+
+```json
+{
+  "mcpServers": {
+    "network-school-events": {
+      "url": "https://your-server-url.railway.app/mcp"
+    }
+  }
+}
+```
+
+Claude will automatically:
+1. Discover OAuth endpoints
+2. Redirect you to login page
+3. Ask for WiFi password + email
+4. Complete OAuth flow
+5. Start using the server
+
+**See [OAUTH_GUIDE.md](./OAUTH_GUIDE.md) for detailed setup.**
+
+#### Option B: Legacy SSE Mode
+
+Start the server with SSE:
 
 ```bash
 npm run start:sse
