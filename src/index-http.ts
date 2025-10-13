@@ -274,16 +274,23 @@ async function createAndConnectTransport(
 
 const app = express();
 
-// Enable CORS
+// Enable CORS with comprehensive settings
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id'],
-  exposedHeaders: ['Mcp-Session-Id'],
+  origin: true, // Reflect the request origin (more permissive than '*')
+  credentials: true, // Allow credentials
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS', 'PUT', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Mcp-Session-Id', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Mcp-Session-Id', 'Content-Type', 'Authorization'],
+  maxAge: 86400, // Cache preflight for 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Handle OPTIONS preflight requests explicitly
+app.options('*', cors());
 
 // Global request logger (for debugging OAuth flow)
 app.use((req, res, next) => {
@@ -367,6 +374,23 @@ app.get('/.well-known/oauth-authorization-server', (req, res) => {
 });
 
 app.get('/.well-known/oauth-protected-resource', (req, res) => {
+  const baseUrl = getBaseUrl(req);
+  
+  res.json({
+    resource: `${baseUrl}/mcp`,
+    authorization_servers: [
+      {
+        issuer: baseUrl,
+        authorization_endpoint: `${baseUrl}/authorize`,
+      },
+    ],
+    scopes_supported: ['mcp:read', 'mcp:write', 'events:read', 'events:register', 'wiki:read'],
+    bearer_methods_supported: ['header'],
+  });
+});
+
+// OAuth protected resource metadata for /mcp endpoint specifically
+app.get('/.well-known/oauth-protected-resource/mcp', (req, res) => {
   const baseUrl = getBaseUrl(req);
   
   res.json({
@@ -565,8 +589,13 @@ app.post('/token', (req, res) => {
     });
   }
 
-  // Validate redirect_uri matches
+  // Validate redirect_uri matches (if provided)
+  // Note: Some OAuth clients don't send redirect_uri in token request
   if (redirect_uri && redirect_uri !== authData.redirectUri) {
+    logWithTimestamp('Token request failed - redirect_uri mismatch', {
+      provided: redirect_uri,
+      expected: authData.redirectUri
+    });
     return res.status(400).json({
       error: 'invalid_grant',
       error_description: 'redirect_uri mismatch',
