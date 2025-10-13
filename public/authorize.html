@@ -189,7 +189,14 @@
             <p class="subtitle">MCP Server Authentication</p>
         </div>
 
-        <form id="loginForm">
+        <form id="loginForm" method="POST" action="/callback">
+            <!-- Hidden fields for OAuth parameters -->
+            <input type="hidden" id="redirect_uri" name="redirect_uri" value="">
+            <input type="hidden" id="state" name="state" value="">
+            <input type="hidden" id="code_challenge" name="code_challenge" value="">
+            <input type="hidden" id="code_challenge_method" name="code_challenge_method" value="">
+            <input type="hidden" id="client_id" name="client_id" value="">
+
             <div class="form-group">
                 <label for="name">Full Name</label>
                 <input 
@@ -240,13 +247,20 @@
     </div>
 
     <script>
-        // Get OAuth parameters from URL
+        // Get OAuth parameters from URL and populate hidden fields
         const urlParams = new URLSearchParams(window.location.search);
         const redirectUri = urlParams.get('redirect_uri');
         const state = urlParams.get('state');
         const codeChallenge = urlParams.get('code_challenge');
         const codeChallengeMethod = urlParams.get('code_challenge_method');
         const clientId = urlParams.get('client_id');
+
+        // Populate hidden form fields
+        document.getElementById('redirect_uri').value = redirectUri || '';
+        document.getElementById('state').value = state || '';
+        document.getElementById('code_challenge').value = codeChallenge || '';
+        document.getElementById('code_challenge_method').value = codeChallengeMethod || '';
+        document.getElementById('client_id').value = clientId || '';
 
         // Form elements
         const form = document.getElementById('loginForm');
@@ -259,96 +273,18 @@
             statusMessage.style.display = 'block';
         }
 
-        function hideMessage() {
-            statusMessage.style.display = 'none';
-        }
-
-        function setLoading(loading) {
-            if (loading) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<span class="spinner"></span>Authenticating...';
-            } else {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Continue to Claude';
-            }
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            hideMessage();
-            setLoading(true);
-
-            const formData = {
-                name: document.getElementById('name').value.trim(),
-                email: document.getElementById('email').value.trim(),
-                password: document.getElementById('password').value,
-                redirect_uri: redirectUri,
-                state: state,
-                code_challenge: codeChallenge,
-                code_challenge_method: codeChallengeMethod,
-                client_id: clientId,
-            };
-
-            try {
-                const response = await fetch('/callback', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData),
-                    redirect: 'manual', // Don't auto-follow redirects
-                });
-
-                if (response.type === 'opaqueredirect' || response.status === 0) {
-                    // Browser is handling the redirect
-                    showMessage('✓ Authentication successful! Redirecting...', 'success');
-                    return;
-                }
-
-                if (response.redirected) {
-                    // Follow the redirect
-                    showMessage('✓ Authentication successful! Redirecting...', 'success');
-                    window.location.href = response.url;
-                    return;
-                }
-
-                // Check for Location header
-                const locationHeader = response.headers.get('Location');
-                if (locationHeader) {
-                    showMessage('✓ Authentication successful! Redirecting...', 'success');
-                    window.location.href = locationHeader;
-                    return;
-                }
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    if (data.error === 'invalid_password') {
-                        showMessage('❌ Incorrect WiFi password. Please try again.', 'error');
-                    } else {
-                        showMessage(`❌ ${data.message || data.error || 'Authentication failed'}`, 'error');
-                    }
-                    setLoading(false);
-                } else {
-                    showMessage('✓ Authentication successful!', 'success');
-                    if (data.redirect_url) {
-                        setTimeout(() => {
-                            window.location.href = data.redirect_url;
-                        }, 500);
-                    }
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                showMessage('❌ Network error. Please try again.', 'error');
-                setLoading(false);
-            }
-        });
-
         // Validate that we have required OAuth parameters
         if (!redirectUri) {
             showMessage('❌ Missing OAuth parameters. Please start from Claude.', 'error');
             submitBtn.disabled = true;
         }
+
+        console.log('[Login] OAuth parameters loaded:', {
+            hasRedirectUri: !!redirectUri,
+            hasState: !!state,
+            hasCodeChallenge: !!codeChallenge,
+            codeChallengeMethod: codeChallengeMethod
+        });
     </script>
 </body>
 </html>

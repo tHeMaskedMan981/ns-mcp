@@ -285,6 +285,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Global request logger (for debugging OAuth flow)
+app.use((req, res, next) => {
+  logWithTimestamp(`${req.method} ${req.path}`, {
+    origin: req.headers['origin'],
+    referer: req.headers['referer'],
+    userAgent: req.headers['user-agent']?.substring(0, 60),
+  });
+  next();
+});
+
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -417,12 +427,23 @@ app.get('/authorize', (req, res) => {
 
 // Callback endpoint - processes login form submission
 app.post('/callback', (req, res) => {
-  const { password, name, email, redirect_uri, state, code_challenge, code_challenge_method } = req.body;
+  // Support both JSON and form-urlencoded data
+  const { password, name, email, redirect_uri, state, code_challenge, code_challenge_method, client_id } = req.body;
 
-  logWithTimestamp('Callback received', { email, name, redirect_uri, hasPassword: !!password });
+  logWithTimestamp('Callback received', { 
+    email, 
+    name, 
+    redirect_uri, 
+    state,
+    client_id,
+    hasPassword: !!password,
+    hasCodeChallenge: !!code_challenge,
+    contentType: req.headers['content-type']
+  });
 
   // Validate required fields
   if (!password || !name || !email || !redirect_uri) {
+    logWithTimestamp('Callback validation failed - missing fields', req.body);
     return res.status(400).json({
       error: 'Missing required fields',
       required: ['password', 'name', 'email', 'redirect_uri'],
@@ -477,24 +498,35 @@ app.post('/callback', (req, res) => {
     redirectUrl.searchParams.set('state', state as string);
   }
 
-  logWithTimestamp('Authorization code issued', { email, code: code.substring(0, 10) + '...' });
+  const finalRedirectUrl = redirectUrl.toString();
+  logWithTimestamp('Redirecting to client', { 
+    email, 
+    code: code.substring(0, 10) + '...',
+    redirectUrl: finalRedirectUrl
+  });
 
   // Redirect back to Claude with the authorization code
-  res.redirect(redirectUrl.toString());
+  res.redirect(302, finalRedirectUrl);
 });
 
 // Token endpoint - exchanges authorization code for access token
 app.post('/token', (req, res) => {
   const { grant_type, code, redirect_uri, code_verifier } = req.body;
 
-  logWithTimestamp('Token request', {
+  logWithTimestamp('Token request received', {
     grant_type,
     code: code ? code.substring(0, 10) + '...' : 'none',
     redirect_uri,
     code_verifier: code_verifier ? 'present' : 'none',
+    headers: {
+      'content-type': req.headers['content-type'],
+      'origin': req.headers['origin'],
+      'user-agent': req.headers['user-agent']?.substring(0, 50),
+    }
   });
 
   if (grant_type !== 'authorization_code') {
+    logWithTimestamp('Token request failed - unsupported grant type', { grant_type });
     return res.status(400).json({
       error: 'unsupported_grant_type',
       error_description: 'Only authorization_code grant type is supported',
@@ -502,6 +534,7 @@ app.post('/token', (req, res) => {
   }
 
   if (!code) {
+    logWithTimestamp('Token request failed - missing code');
     return res.status(400).json({
       error: 'invalid_request',
       error_description: 'code is required',
@@ -511,11 +544,17 @@ app.post('/token', (req, res) => {
   // Verify the code exists
   const authData = authCodes.get(code);
   if (!authData) {
+    logWithTimestamp('Token request failed - invalid code', { 
+      code: code.substring(0, 10) + '...',
+      availableCodes: authCodes.size 
+    });
     return res.status(400).json({
       error: 'invalid_grant',
       error_description: 'Invalid authorization code',
     });
   }
+
+  logWithTimestamp('Auth code found', { email: authData.email });
 
   // Check if code expired
   if (authData.expiresAt < Date.now()) {
@@ -578,18 +617,21 @@ app.post('/token', (req, res) => {
   // Clean up auth code (one-time use)
   authCodes.delete(code);
 
-  logWithTimestamp('Access token issued', {
-    email: authData.email,
-    token: accessToken.substring(0, 10) + '...',
-  });
-
-  // Return the token response
-  res.json({
+  const tokenResponse = {
     access_token: accessToken,
     token_type: 'Bearer',
     expires_in: 86400, // 24 hours
     scope: tokenData.scopes.join(' '),
+  };
+
+  logWithTimestamp('Access token issued successfully', {
+    email: authData.email,
+    token: accessToken.substring(0, 10) + '...',
+    response: tokenResponse,
   });
+
+  // Return the token response
+  res.json(tokenResponse);
 });
 
 // ============================================================================
